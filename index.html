@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Removedor de Silêncio de Áudio — PRO</title>
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -383,7 +384,7 @@
 
       <div class="actions">
         <button class="btn-dl"  onclick="downloadWav()">⬇️ Baixar WAV</button>
-        <button class="btn-dl2" onclick="downloadMp3Info()">ℹ️ Converter MP3</button>
+        <button class="btn-dl2" onclick="downloadMp3()">🎵 Baixar MP3</button>
       </div>
     </div>
 
@@ -516,8 +517,31 @@ function downloadWav() {
   a.download = "audio_limpo.wav";
   a.click();
 }
-function downloadMp3Info() {
-  alert("Para converter para MP3, importe o WAV baixado no Audacity (gratuito) ou use ffmpeg:\nffmpeg -i audio_limpo.wav -codec:a libmp3lame -qscale:a 2 audio_limpo.mp3");
+async function downloadMp3() {
+  if (!wavBlob) return;
+  const btn = document.querySelector(".btn-dl2");
+  const orig = btn.textContent;
+  btn.textContent = "⏳ Convertendo...";
+  btn.disabled = true;
+  try {
+    const { createFFmpeg, fetchFile } = FFmpeg;
+    const ff = createFFmpeg({ log: false });
+    await ff.load();
+    const wavArr = await wavBlob.arrayBuffer();
+    ff.FS("writeFile", "input.wav", new Uint8Array(wavArr));
+    await ff.run("-i", "input.wav", "-codec:a", "libmp3lame", "-qscale:a", "2", "output.mp3");
+    const mp3Data = ff.FS("readFile", "output.mp3");
+    const mp3Blob = new Blob([mp3Data.buffer], { type: "audio/mp3" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(mp3Blob);
+    a.download = "audio_limpo.mp3";
+    a.click();
+    btn.textContent = "✅ MP3 baixado!";
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 3000);
+  } catch(e) {
+    btn.textContent = "❌ Erro: " + e.message;
+    btn.disabled = false;
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────
